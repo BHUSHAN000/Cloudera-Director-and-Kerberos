@@ -1,0 +1,146 @@
+*******************LOGIN TO CD MACHINE**************************************
+
+## sudo yum install wget -y
+## cd /etc/yum.repos.d/
+## sudo wget "https://archive.cloudera.com/director/redhat/7/x86_64/director/cloudera-director.repo"
+## sudo yum install -y cloudera-director-server cloudera-director-client
+## sudo service cloudera-director-server start
+## sudo service iptables save
+## sudo chkconfig iptables off
+## sudo service iptables stop 
+## exit
+
+**************PASTE   ACCESSKEYID AND SECRETACCESSKEY TO aws.simple.conf file with subnetId and securityGroupIds**************
+**************FROM LOCAL MACHINE EXECUTE THESE STEPS***********
+
+## sh prelaunch.sh
+
+
+*************** AFTER INSTALLATION ******************************
+**************** MAKE HEALTHY CLUSTER ***************************
+*****************LOGIN TO CM MACHINE*****************************
+
+## sudo yum install -y krb5-server 
+
+## exit
+
+## sudo nano /etc/krb5.conf
+
+
+********* COPY AND PASTE THESE LINES****************
+
+
+
+[libdefaults]
+ default_realm = HADOOPSECURITY.COM
+ dns_lookup_realm = false
+ dns_lookup_kdc = false
+ ticket_lifetime = 24h
+ renew_lifetime = 7d
+ forwardable = true
+
+
+
+ default_tgs_enctypes = aes256-cts-hmac-sha1-96 aes128-cts-hmac-sha1-96 arcfour-hmac-md5
+ default_tkt_enctypes = aes256-cts-hmac-sha1-96 aes128-cts-hmac-sha1-96 arcfour-hmac-md5
+   permitted_enctypes = aes256-cts-hmac-sha1-96 aes128-cts-hmac-sha1-96 arcfour-hmac-md5
+
+
+[realms]
+ HADOOPSECURITY.COM = {
+  kdc = ip-10-0-0-178.ec2.internal
+  admin_server = ip-10-0-0-178.ec2.internal
+  max_renewable_life = 7d
+ }
+
+
+****************just paste CM private dns address in kdc and admin_server ***********************************
+------------------------------------------------------------------------------------------------------------
+
+
+***************** copy all public ip's from EC2 in cluster file ***************************************
+
+## sh putmove.sh krb5.conf /etc/
+
+*****************LOGIN TO CM MACHINE*****************************
+
+## sudo nano /var/kerberos/krb5kdc/kadm5.acl
+
+**************paste this line in it*****************************
+
+*/admin@HADOOPSECURITY.COM      *
+
+=================================================================================================================
+
+## sudo nano /var/kerberos/krb5kdc/kdc.conf
+
+**************paste this line in it*****************************
+
+[kdcdefaults]
+ kdc_ports = 88
+ kdc_tcp_ports = 88
+
+[realms]
+ HADOOPSECURITY.COM = {
+ #master_key_type = aes256-cts
+acl_file = /var/kerberos/krb5kdc/kadm5.acl
+dict_file = /usr/share/dict/words
+admin_keytab = /var/kerberos/krb5kdc/kadm5.keytab
+supported_enctypes = des3-hmac-sha1:normal arcfour-hmac:normal des-hmac-sha1:normal des-cbc-md5:normal des-cbc-crc:normal des-cbc-crc:v4 des-cbc-crc:afs3
+max_renewable_life = 7d
+ }
+
+==========================================================================================
+
+## sudo kdb5_util create
+"Give a master password"
+
+## sudo service krb5kdc start
+
+
+## sudo service  kadmin start
+
+## sudo kadmin.local
+
+kadmin.local: addprinc cm/admin
+kadmin.local: addprinc bhushan
+kadmin.local: exit
+
+******************** TEST THE USER AUTHENTICATION ****************************
+## kinit cm/admin
+(  enter the password of cm/admin  )
+
+## klist -e
+
+
+************************* NOW GO TO CM WEB USER INTERFACE ***************************
+
+administration  -->  Security --> enable kerberos --> mark all ok --> next
+
+KDC type- MIT KDC
+Kerberos Security Realm - HADOOPSECURITY.COM
+KDC server host - ( paste the CM private dns address)
+KDC Admin Server host -  ( paste the CM private dns address)
+
+kerberos encryption type- 
+des3-hmac-sha1
+arcfour-hmac
+des-hmac-sha1
+des-cbc-md5
+des-cbc-crc
+aes256-cts-hmac-sha1-96
+aes128-cts-hmac-sha1-96
+arcfour-hmac-md5
+
+--> continue
+==================================================================================================
+give user cm/admin
+give password
+==================================================================================================
+
+************************* NOW GO TO CM WEB USER INTERFACE ***************************
+administration  -->  Security --> Kerberos Credentials --> import KDC Account Manager Credentials command  
+
+give user cm/admin
+give password
+
